@@ -2,7 +2,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, Check, CheckCheck, CircleAlert, ExternalLink, GitMerge, GitPullRequest, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useMarkAllNotificationsReadMutation, useMarkNotificationReadMutation, useNotificationsQuery } from "../hooks/useNotificationsQuery";
+import {
+	useMarkAllNotificationsReadMutation,
+	useMarkNotificationReadMutation,
+	useNotificationsQuery,
+} from "../hooks/useNotificationsQuery";
 import { aoBridge } from "../lib/bridge";
 import { formatTimeCompact } from "../lib/format-time";
 import { createNotificationsTransport, type NotificationDTO, unreadNotificationsQueryKey } from "../lib/notifications";
