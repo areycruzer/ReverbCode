@@ -8,6 +8,7 @@ import {
 	workerDisplayStatus,
 	workerSessions,
 } from "../types/workspace";
+import { useSessionScmSummary } from "../hooks/useSessionScmSummary";
 import { useWorkspaceQuery } from "../hooks/useWorkspaceQuery";
 import { DashboardSubhead } from "./DashboardSubhead";
 import { cn } from "../lib/utils";
@@ -69,6 +70,7 @@ const BADGE: Record<WorkerDisplayStatus, { label: string; className: string }> =
 	ci_failed: { label: "CI failed", className: "text-error" },
 	mergeable: { label: "Ready", className: "text-success" },
 	done: { label: "Done", className: "text-passive" },
+	unknown: { label: "Unknown", className: "text-passive" },
 };
 
 export function SessionsBoard({ projectId }: SessionsBoardProps) {
@@ -197,6 +199,9 @@ function ZoneColumn({
 function SessionCard({ session, onOpen }: { session: WorkspaceSession; onOpen: () => void }) {
 	const badge = BADGE[workerDisplayStatus(session)];
 	const branch = session.branch || `session/${session.id}`;
+	const prSummary = useSessionScmSummary(session.id).data?.[0];
+	const failingChecks = prSummary?.ci.failingChecks.slice(0, 2) ?? [];
+	const reviewers = prSummary?.review.unresolvedBy.slice(0, 2).map((reviewer) => reviewer.reviewerId) ?? [];
 	return (
 		<button
 			className="w-full rounded-[7px] border border-border bg-surface text-left transition-colors hover:border-border-strong"
@@ -220,7 +225,22 @@ function SessionCard({ session, onOpen }: { session: WorkspaceSession; onOpen: (
 			</div>
 			<div className="px-[13px] pb-2.5 font-mono text-[10.5px] text-passive">{branch}</div>
 			<div className="border-t border-border px-[13px] py-2 font-mono text-[10.5px] text-passive">
-				{session.pullRequest ? `PR #${session.pullRequest.number} · ${session.pullRequest.state}` : "no PR yet"}
+				{prSummary ? (
+					<div className="flex flex-col gap-1">
+						<span>
+							PR #{prSummary.number} · {prSummary.state} · CI {prSummary.ci.state}
+						</span>
+						{failingChecks.length > 0 ? (
+							<span className="truncate text-error">{failingChecks.map((check) => check.name).join(", ")}</span>
+						) : null}
+						{reviewers.length > 0 ? <span className="truncate">review: {reviewers.join(", ")}</span> : null}
+						{prSummary.mergeability.state === "conflicting" || prSummary.mergeability.state === "blocked" ? (
+							<span className="truncate">merge: {prSummary.mergeability.reasons.join(", ") || prSummary.mergeability.state}</span>
+						) : null}
+					</div>
+				) : (
+					"no PR yet"
+				)}
 			</div>
 		</button>
 	);

@@ -1,16 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { GitBranch, GitCommitHorizontal, GitPullRequest, Plus, Square, Trash2 } from "lucide-react";
-import type { components } from "../../api/schema";
-import { apiClient } from "../lib/api-client";
 import { formatTimeCompact } from "../lib/format-time";
+import { useSessionScmSummary, type SessionPRSummary } from "../hooks/useSessionScmSummary";
 import type { SessionStatus, WorkspaceSession } from "../types/workspace";
 import { workerDisplayStatus } from "../types/workspace";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
 
-type PRFacts = components["schemas"]["SessionPRFacts"];
 type InspectorView = "summary" | "changes" | "browser";
 
 const VIEWS: { id: InspectorView; label: string; icon: ReactNode }[] = [
@@ -54,7 +51,7 @@ const VIEWS: { id: InspectorView; label: string; icon: ReactNode }[] = [
 	},
 ];
 
-const prStateTone: Record<PRFacts["state"], string> = {
+const prStateTone: Record<SessionPRSummary["state"], string> = {
 	open: "border-success/40 bg-success/10 text-success",
 	draft: "border-border bg-raised text-muted-foreground",
 	merged: "border-accent/40 bg-accent-weak text-accent",
@@ -118,18 +115,7 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
 }
 
 function SummaryView({ session }: { session: WorkspaceSession }) {
-	const hasPr = Boolean(session.pullRequest);
-	const query = useQuery({
-		queryKey: ["session-pr", session.id],
-		enabled: hasPr,
-		queryFn: async () => {
-			const { data, error } = await apiClient.GET("/api/v1/sessions/{sessionId}/pr", {
-				params: { path: { sessionId: session.id } },
-			});
-			if (error) return [] as PRFacts[];
-			return data?.prs ?? [];
-		},
-	});
+	const query = useSessionScmSummary(session.id);
 	const prFacts = query.data?.[0];
 	const branchLabel = session.branch || `session/${session.id}`;
 
@@ -138,45 +124,148 @@ function SummaryView({ session }: { session: WorkspaceSession }) {
 			<Section
 				title="Pull request"
 				action={
-					prFacts?.url ? (
-						<a href={prFacts.url} target="_blank" rel="noopener noreferrer" className="inspector-section__link">
+					prFacts?.htmlUrl || prFacts?.url ? (
+						<a href={prFacts.htmlUrl || prFacts.url} target="_blank" rel="noopener noreferrer" className="inspector-section__link">
 							Open ↗
 						</a>
 					) : undefined
 				}
 			>
-				{!hasPr ? (
-					<p className="inspector-empty">No pull request opened yet.</p>
-				) : query.isLoading ? (
+				{query.isLoading ? (
 					<p className="inspector-empty">Loading pull request…</p>
+				) : query.isError ? (
+					<p className="inspector-empty">Could not load pull request summary.</p>
+				) : !prFacts ? (
+					<p className="inspector-empty">No pull request opened yet.</p>
 				) : (
 					<div className="flex flex-col gap-2">
 						<div className="flex items-center gap-2">
 							<GitPullRequest className="h-3.5 w-3.5 shrink-0 text-passive" aria-hidden="true" />
 							<span className="text-[12.5px] font-medium text-foreground">
-								PR #{prFacts?.number ?? session.pullRequest?.number}
+								PR #{prFacts.number}
 							</span>
-							{prFacts ? (
-								<Badge
-									variant="outline"
-									className={cn("ml-auto h-5 px-1.5 text-[10px] font-medium", prStateTone[prFacts.state])}
-								>
-									{prFacts.state}
-								</Badge>
-							) : null}
+							<Badge
+								variant="outline"
+								className={cn("ml-auto h-5 px-1.5 text-[10px] font-medium", prStateTone[prFacts.state])}
+							>
+								{prFacts.state}
+							</Badge>
 						</div>
-						{prFacts ? (
-							<dl className="inspector-kv">
-								<Row k="CI" v={prFacts.ci || "—"} mono />
-								<Row k="Merge" v={prFacts.mergeability || "—"} mono />
-								<Row k="Review" v={prFacts.review || "—"} mono />
-							</dl>
-						) : (
-							<p className="inspector-empty">No enriched PR facts yet.</p>
-						)}
+						<div className="text-[12px] font-medium leading-snug text-foreground">{prFacts.title || "Untitled PR"}</div>
+						<dl className="inspector-kv">
+							<Row k="Author" v={prFacts.author || "—"} mono />
+							<Row k="Branch" v={`${prFacts.sourceBranch || "—"} -> ${prFacts.targetBranch || "—"}`} mono />
+							<Row k="Observed" v={formatTimeCompact(prFacts.observedAt ?? prFacts.updatedAt)} mono />
+						</dl>
 					</div>
 				)}
 			</Section>
+
+			{prFacts ? (
+				<>
+					<Section title="CI">
+						<dl className="inspector-kv">
+							<Row k="State" v={prFacts.ci.state} mono />
+							<Row k="Observed" v={formatTimeCompact(prFacts.ciObservedAt ?? prFacts.updatedAt)} mono />
+						</dl>
+						{prFacts.ci.failingChecks.length > 0 ? (
+							<div className="mt-2 flex flex-col gap-1.5">
+								{prFacts.ci.failingChecks.map((check) =>
+									check.url ? (
+										<a
+											key={`${check.name}-${check.url}`}
+											className="truncate font-mono text-[11px] text-error hover:underline"
+											href={check.url}
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											{check.name} · {check.status}
+										</a>
+									) : (
+										<span key={check.name} className="truncate font-mono text-[11px] text-error">
+											{check.name} · {check.status}
+										</span>
+									),
+								)}
+							</div>
+						) : null}
+					</Section>
+
+					<Section title="Review">
+						<dl className="inspector-kv">
+							<Row k="Decision" v={prFacts.review.decision} mono />
+							<Row k="Observed" v={formatTimeCompact(prFacts.reviewObservedAt ?? prFacts.updatedAt)} mono />
+						</dl>
+						{prFacts.review.unresolvedBy.length > 0 ? (
+							<div className="mt-2 flex flex-col gap-2">
+								{prFacts.review.unresolvedBy.map((reviewer) => (
+									<div key={reviewer.reviewerId} className="text-[11.5px] text-muted-foreground">
+										<span className="font-mono text-foreground">{reviewer.reviewerId}</span>
+										<span className="font-mono"> · {reviewer.count}</span>
+										<div className="mt-1 flex flex-wrap gap-1.5">
+											{reviewer.links.map((link, index) =>
+												link.url ? (
+													<a
+														key={`${reviewer.reviewerId}-${index}`}
+														className="font-mono text-[10.5px] text-accent hover:underline"
+														href={link.url}
+														target="_blank"
+														rel="noopener noreferrer"
+													>
+														{link.file || "comment"}
+														{link.line ? `:${link.line}` : ""}
+													</a>
+												) : (
+													<span key={`${reviewer.reviewerId}-${index}`} className="font-mono text-[10.5px] text-passive">
+														{link.file || "comment"}
+														{link.line ? `:${link.line}` : ""}
+													</span>
+												),
+											)}
+										</div>
+									</div>
+								))}
+							</div>
+						) : null}
+					</Section>
+
+					<Section
+						title="Mergeability"
+						action={
+							prFacts.mergeability.prUrl ? (
+								<a
+									href={prFacts.mergeability.prUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inspector-section__link"
+								>
+									GitHub ↗
+								</a>
+							) : undefined
+						}
+					>
+						<dl className="inspector-kv">
+							<Row k="State" v={prFacts.mergeability.state} mono />
+							<Row k="Reasons" v={prFacts.mergeability.reasons.length ? prFacts.mergeability.reasons.join(", ") : "—"} mono />
+						</dl>
+						{prFacts.mergeability.conflictFiles?.length ? (
+							<div className="mt-2 flex flex-col gap-1">
+								{prFacts.mergeability.conflictFiles.map((file) =>
+									file.url ? (
+										<a key={file.path} className="truncate font-mono text-[11px] text-accent hover:underline" href={file.url}>
+											{file.path}
+										</a>
+									) : (
+										<span key={file.path} className="truncate font-mono text-[11px] text-muted-foreground">
+											{file.path}
+										</span>
+									),
+								)}
+							</div>
+						) : null}
+					</Section>
+				</>
+			) : null}
 
 			<Section title="Activity">
 				<ActivityTimeline session={session} />
@@ -274,6 +363,7 @@ const STATUS_PILL: Record<
 	ci_failed: { label: "CI failed", tone: "var(--red)", breathe: false },
 	mergeable: { label: "Ready", tone: "var(--green)", breathe: false },
 	done: { label: "Done", tone: "var(--fg-muted)", breathe: false },
+	unknown: { label: "Unknown", tone: "var(--fg-muted)", breathe: false },
 	idle: { label: "Idle", tone: "var(--fg-muted)", breathe: false },
 };
 

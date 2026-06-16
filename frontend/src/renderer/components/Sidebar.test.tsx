@@ -29,7 +29,7 @@ function renderSidebar(onRemoveProject = vi.fn().mockResolvedValue(undefined)) {
 	render(
 		<SidebarProvider>
 			<Sidebar
-				daemonStatus={{ state: "running" }}
+				daemonStatus={{ state: "ready" }}
 				onCreateProject={vi.fn()}
 				onRemoveProject={onRemoveProject}
 				workspaces={[workspace]}
