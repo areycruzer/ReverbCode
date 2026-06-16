@@ -125,7 +125,12 @@ function SummaryView({ session }: { session: WorkspaceSession }) {
 				title="Pull request"
 				action={
 					prFacts?.htmlUrl || prFacts?.url ? (
-						<a href={prFacts.htmlUrl || prFacts.url} target="_blank" rel="noopener noreferrer" className="inspector-section__link">
+						<a
+							href={prFacts.htmlUrl || prFacts.url}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="inspector-section__link"
+						>
 							Open ↗
 						</a>
 					) : undefined
@@ -141,9 +146,7 @@ function SummaryView({ session }: { session: WorkspaceSession }) {
 					<div className="flex flex-col gap-2">
 						<div className="flex items-center gap-2">
 							<GitPullRequest className="h-3.5 w-3.5 shrink-0 text-passive" aria-hidden="true" />
-							<span className="text-[12.5px] font-medium text-foreground">
-								PR #{prFacts.number}
-							</span>
+							<span className="text-[12.5px] font-medium text-foreground">PR #{prFacts.number}</span>
 							<Badge
 								variant="outline"
 								className={cn("ml-auto h-5 px-1.5 text-[10px] font-medium", prStateTone[prFacts.state])}
@@ -216,7 +219,10 @@ function SummaryView({ session }: { session: WorkspaceSession }) {
 														{link.line ? `:${link.line}` : ""}
 													</a>
 												) : (
-													<span key={`${reviewer.reviewerId}-${index}`} className="font-mono text-[10.5px] text-passive">
+													<span
+														key={`${reviewer.reviewerId}-${index}`}
+														className="font-mono text-[10.5px] text-passive"
+													>
 														{link.file || "comment"}
 														{link.line ? `:${link.line}` : ""}
 													</span>
@@ -246,13 +252,21 @@ function SummaryView({ session }: { session: WorkspaceSession }) {
 					>
 						<dl className="inspector-kv">
 							<Row k="State" v={prFacts.mergeability.state} mono />
-							<Row k="Reasons" v={prFacts.mergeability.reasons.length ? prFacts.mergeability.reasons.join(", ") : "—"} mono />
+							<Row
+								k="Reasons"
+								v={prFacts.mergeability.reasons.length ? prFacts.mergeability.reasons.join(", ") : "—"}
+								mono
+							/>
 						</dl>
 						{prFacts.mergeability.conflictFiles?.length ? (
 							<div className="mt-2 flex flex-col gap-1">
 								{prFacts.mergeability.conflictFiles.map((file) =>
 									file.url ? (
-										<a key={file.path} className="truncate font-mono text-[11px] text-accent hover:underline" href={file.url}>
+										<a
+											key={file.path}
+											className="truncate font-mono text-[11px] text-accent hover:underline"
+											href={file.url}
+										>
 											{file.path}
 										</a>
 									) : (
