@@ -16,4 +16,8 @@ export const aoBridge: AoBridge =
 			stop: async () => ({ state: "stopped" }),
 			onStatus: () => () => undefined,
 		},
+		notifications: {
+			show: async () => undefined,
+			onClick: () => () => undefined,
+		},
 	} satisfies AoBridge);

@@ -61,4 +61,8 @@ window.ao = {
 		stop: async () => ({ state: "stopped" }),
 		onStatus: () => () => undefined,
 	},
+	notifications: {
+		show: async () => undefined,
+		onClick: () => () => undefined,
+	},
 };

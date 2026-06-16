@@ -36,6 +36,9 @@ surface (`npm run sqlc`, `npm run api`).
   `/prs/{id}/resolve-comments`.
 - Review routes registered: `GET /reviews`, `POST /reviews/execute`,
   `POST /reviews/{id}/send`.
+- Durable dashboard notifications for `needs_input`, `ready_to_merge`,
+  `pr_merged`, and `pr_closed_unmerged`: backend enrichment/persistence,
+  unread list, live notification stream, and read acknowledgement API.
 - SCM observer (`internal/observe/scm`) wired into the daemon: GitHub provider,
   lazy/non-blocking auth, per-PR polling with ETag guards and semantic diffing,
   feeding PR facts into lifecycle, which sends agent nudges for CI failures,
@@ -58,14 +61,15 @@ surface (`npm run sqlc`, `npm run api`).
   spawn-orchestrator flow.
 - Terminal pane (xterm) over the mux WebSocket, with a live SSE events
   connection and port-rebind on daemon restart.
+- In-app notification center with unread catch-up over REST, live notification
+  stream updates, explicit open-target actions, mark-read controls, and
+  Electron app toasts while the app is running.
 
 ## In flight / not yet a runtime feature
 
 - **Tracker lane**: GitHub tracker adapter exists, but there is no daemon
   observer loop or agent-lifecycle→issue mirroring yet, so the tracker does
   nothing at runtime ([#112](https://github.com/aoagents/agent-orchestrator/issues/112)).
-- **Notifications**: design/in-flight only; no shipped backend notifier or UI
-  center.
 - **Live PR/tracker fact surfacing**: the observer writes facts, but exposing
   the full `pr_*` / `tracker_*` CDC events to live consumers
   ([#110](https://github.com/aoagents/agent-orchestrator/issues/110)) and in
